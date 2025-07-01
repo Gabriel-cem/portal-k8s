@@ -8,7 +8,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install dependencies
-RUN npm install @azure/msal-react@latest
+RUN npm install @azure/msal-browser@4.14.0 @azure/msal-react@3.0.14
 
 # Copy the rest of the application code to the container
 COPY . .
