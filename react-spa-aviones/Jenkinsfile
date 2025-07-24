@@ -14,9 +14,16 @@ spec:
     command: ["/busybox/sh", "-c"]
     args: ["sleep 3600"]
     volumeMounts:
+    - name: cemosa-ca
+      mountPath: /usr/local/share/ca-certificates/cemosa-ca.crt
+      subPath: cemosa-ca.crt
     - name: kaniko-secret
       mountPath: /kaniko/.docker
+      
   volumes:
+  - name: cemosa-ca
+    configMap:
+      name: cemosa-ca-cert
   - name: kaniko-secret
     secret:
       secretName: dockerhub-kaniko2
