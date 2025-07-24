@@ -31,6 +31,14 @@ spec:
         }
     }
     stages {
+        
+        stage('Importar CA') {
+            steps {
+                container('jnlp') {
+                    sh '''
+                    update-ca-certificates
+                    '''
+                  }
         stage('Build Image') {
             steps {
                 container('kaniko') {
