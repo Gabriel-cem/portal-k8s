@@ -16,7 +16,7 @@ spec:
   volumes:
   - name: kaniko-secret
     secret:
-      secretName: docker-config
+      secretName: dockerhub-kaniko2
 """
         }
     }
