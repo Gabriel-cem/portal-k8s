@@ -9,17 +9,20 @@ spec:
   - name: jnlp
     image: jenkins/inbound-agent:alpine
     args: ['\$(JENKINS_SECRET)', '\$(JENKINS_NAME)']
+    volumeMounts:
+    - name: cemosa-ca
+      mountPath: /usr/local/share/ca-certificates/cemosa-ca.crt
+      subPath: cemosa-ca.crt
   - name: kaniko
     image: gcr.io/kaniko-project/executor:latest
-    command: ["/busybox/sh", "-c"]
-    args: ["sleep 3600"]
+    command: ["/kaniko/executor"]
+    args: ["--help"]
     volumeMounts:
     - name: cemosa-ca
       mountPath: /usr/local/share/ca-certificates/cemosa-ca.crt
       subPath: cemosa-ca.crt
     - name: kaniko-secret
       mountPath: /kaniko/.docker
-      
   volumes:
   - name: cemosa-ca
     configMap:
@@ -31,14 +34,13 @@ spec:
         }
     }
     stages {
-        
         stage('Importar CA') {
             steps {
                 container('jnlp') {
-                    sh '''
-                    update-ca-certificates
-                    '''
-                  }
+                    sh 'update-ca-certificates'
+                }
+            }
+        }
         stage('Build Image') {
             steps {
                 container('kaniko') {
