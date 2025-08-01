@@ -14,13 +14,20 @@ spec:
       mountPath: /usr/local/share/ca-certificates/cemosa
   - name: kaniko
     image: gcr.io/kaniko-project/executor:latest
+    command:
+    - /kaniko/executor
+    args:
+    - --context=dir://workspace/react-spa-aviones
+    - --dockerfile=Dockerfile
+    - --destination=registry.example.com/gabriel/portal-aviones:latest
+    - --verbosity=debug
+    - --skip-tls-verify
+    - --skip-push-permission-check
     volumeMounts:
     - name: cemosa-ca
       mountPath: /usr/local/share/ca-certificates/cemosa
     - name: kaniko-secret
       mountPath: /kaniko/.docker
-    - mountPath: /var/run/docker.sock
-      name: docker-sock
   volumes:
   - name: cemosa-ca
     configMap:
@@ -28,27 +35,14 @@ spec:
   - name: kaniko-secret
     secret:
       secretName: dockerhub-kaniko2
-  - hostPath:
-      path: /var/run/docker.sock
-      type: ""
-    name: docker-sock
-
 """
         }
     }
     stages {
-        stage('Build Image') {
+        stage('Build Docker Image with Kaniko') {
             steps {
                 container('kaniko') {
-                    sh '''
-                    /kaniko/executor \
-                      --skip-tls-verify\
-                      --skip-push-permission-check\
-                      --context=dir://$(pwd)/react-spa-aviones \
-                      --dockerfile=Dockerfile \
-                      --destination=registry.example.com/gabriel/portal-aviones:latest \
-                      --verbosity=debug       
-                    '''
+                    echo "Construyendo imagen con Kaniko desde react-spa-aviones..."
                 }
             }
         }
