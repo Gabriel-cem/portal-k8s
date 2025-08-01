@@ -11,21 +11,14 @@ spec:
     args: ['\$(JENKINS_SECRET)', '\$(JENKINS_NAME)']
     volumeMounts:
     - name: cemosa-ca
-      mountPath: /usr/local/share/ca-certificates/cemosa/cemosa-ca.crt
-      subPath: cemosa-ca.crt
+      mountPath: /usr/local/share/ca-certificates/cemosa
   - name: kaniko
     image: gcr.io/kaniko-project/executor:latest
-    command: ["/busybox/sh", "-c"]
-    args:
-      - "sleep 9999999"  # Kaniko se ejecutará desde el paso del pipeline
     volumeMounts:
     - name: cemosa-ca
-      mountPath: /usr/local/share/ca-certificates/cemosa/cemosa-ca.crt
-      subPath: cemosa-ca.crt
+      mountPath: /usr/local/share/ca-certificates/cemosa
     - name: kaniko-secret
       mountPath: /kaniko/.docker
-    # - name: kaniko-client-certs
-    #   mountPath: /certs
   volumes:
   - name: cemosa-ca
     configMap:
@@ -33,16 +26,20 @@ spec:
   - name: kaniko-secret
     secret:
       secretName: dockerhub-kaniko2
-  # - name: kaniko-client-certs
-  #   secret:
-  #     secretName: buildkit-client-certs
 """
         }
     }
     stages {
-        stage('Importar CA') {
+        stage('Actualizar CA en JNLP') {
             steps {
                 container('jnlp') {
+                    sh 'update-ca-certificates'
+                }
+            }
+        }
+        stage('Actualizar CA en Kaniko') {
+            steps {
+                container('kaniko') {
                     sh 'update-ca-certificates'
                 }
             }
@@ -57,8 +54,6 @@ spec:
                       --destination=registry.example.com/gabriel/portal-aviones:latest \
                       --verbosity=debug \
                       --skip-tls-verify=false
-                      # --registry-client-cert=registry.example.com=/certs/cert.pem,/certs/key.pem \
-                      # --registry-certificate=registry.example.com=/certs/ca.pem
                     '''
                 }
             }
