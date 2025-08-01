@@ -35,11 +35,12 @@ spec:
                 container('kaniko') {
                     sh '''
                     /kaniko/executor \
+                      --skip-tls-verify\
+                      --skip-push-permission-check\
                       --context=dir://$(pwd)/react-spa-aviones \
                       --dockerfile=Dockerfile \
                       --destination=registry.example.com/gabriel/portal-aviones:latest \
-                      --verbosity=debug \
-                      --skip-tls-verify
+                      --verbosity=debug       
                     '''
                 }
             }
