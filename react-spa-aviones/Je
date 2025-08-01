@@ -1,5 +1,41 @@
 pipeline {
-  agent any
+    agent {
+        kubernetes {
+            yaml """
+apiVersion: v1
+kind: Pod
+spec:
+  containers:
+  - name: jnlp
+    image: jenkins/inbound-agent:alpine
+    args: ['\$(JENKINS_SECRET)', '\$(JENKINS_NAME)']
+    volumeMounts:
+    - name: cemosa-ca
+      mountPath: /usr/local/share/ca-certificates/cemosa
+  - name: kaniko
+    image: gcr.io/kaniko-project/executor:latest
+    volumeMounts:
+    - name: cemosa-ca
+      mountPath: /usr/local/share/ca-certificates/cemosa
+    - name: kaniko-secret
+      mountPath: /kaniko/.docker
+    - mountPath: /var/run/docker.sock
+      name: docker-sock
+  volumes:
+  - name: cemosa-ca
+    configMap:
+      name: cemosa-ca-cert
+  - name: kaniko-secret
+    secret:
+      secretName: dockerhub-kaniko2
+  - hostPath:
+      path: /var/run/docker.sock
+      type: ""
+    name: docker-sock
+
+"""
+        }
+    }
   environment {
     DOCKER_IMAGE = "gab741/portal-aviones"
     DOCKER_TAG = "latest"
