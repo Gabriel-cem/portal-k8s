@@ -53,7 +53,7 @@ spec:
                       --dockerfile=Dockerfile \
                       --destination=registry.example.com/gabriel/portal-aviones:latest \
                       --verbosity=debug \
-                      --skip-tls-verify=false
+                      --skip-tls-verify
                     '''
                 }
             }
