@@ -24,7 +24,7 @@ spec:
   volumes:
   - name: cemosa-ca
     configMap:
-      name: cemosa-ca-cert
+      name: cemosa-ca.cert
   - name: kaniko-secret
     secret:
       secretName: dockerhub-kaniko2
