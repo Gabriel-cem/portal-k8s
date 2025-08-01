@@ -9,15 +9,11 @@ spec:
   - name: jnlp
     image: jenkins/inbound-agent:alpine
     args: ['\$(JENKINS_SECRET)', '\$(JENKINS_NAME)']
-    command: ["/bin/sh", "-c"]
-    args: ["apk add --no-cache ca-certificates && update-ca-certificates && cat"]
     volumeMounts:
     - name: cemosa-ca
       mountPath: /usr/local/share/ca-certificates/cemosa
   - name: kaniko
     image: gcr.io/kaniko-project/executor:latest
-    command: ["/bin/sh", "-c"]
-    args: ["apk add --no-cache ca-certificates && update-ca-certificates && cat"]
     volumeMounts:
     - name: cemosa-ca
       mountPath: /usr/local/share/ca-certificates/cemosa
