@@ -2,32 +2,42 @@ pipeline {
   agent {
     kubernetes {
       yaml '''
-        apiVersion: v1
-        kind: Pod
-        spec:
-          containers:
-          - name: node
-            image: node:18-alpine
-            command: ["cat"]
-            tty: true
-          - name: docker
-            image: docker:latest
-            command: ["cat"]
-            tty: true
-            volumeMounts:
-              - mountPath: /var/run/docker.sock
-                name: docker-sock
-          volumes:
-            - name: docker-sock
-              hostPath:
-                path: /var/run/docker.sock
-      '''
+apiVersion: v1
+kind: Pod
+spec:
+  containers:
+  - name: node
+    image: node:18-alpine
+    command: ['cat']
+    tty: true
+    volumeMounts:
+    - mountPath: /home/jenkins/agent
+      name: workspace-volume
+  - name: kaniko
+    image: gcr.io/kaniko-project/executor:latest
+    command:
+    - /busybox/cat
+    tty: true
+    volumeMounts:
+    - name: kaniko-secret
+      mountPath: /kaniko/.docker
+    - mountPath: /home/jenkins/agent
+      name: workspace-volume
+  volumes:
+  - name: workspace-volume
+    emptyDir: {}
+  - name: kaniko-secret
+    secret:
+      secretName: dockerhub-kaniko2
+'''
     }
   }
+
   environment {
     IMAGE_NAME = 'gab741/portal-aviones'
     IMAGE_TAG = "${env.BUILD_NUMBER}"
   }
+
   stages {
     stage('Build React App') {
       steps {
@@ -42,40 +52,19 @@ pipeline {
       }
     }
 
-    stage('Build Docker Image') {
+    stage('Build & Push Docker Image with Kaniko') {
       steps {
-        container('docker') {
+        container('kaniko') {
           dir('react-spa-aviones') {
             sh '''
-              docker build -t $IMAGE_NAME:$IMAGE_TAG .
+              /kaniko/executor \
+                --context `pwd` \
+                --dockerfile Dockerfile \
+                --destination=$IMAGE_NAME:$IMAGE_TAG \
+                --verbosity=info
             '''
           }
         }
-      }
-    }
-
-    stage('Login to DockerHub') {
-      steps {
-        container('docker') {
-          withCredentials([usernamePassword(credentialsId: 'docker', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-            sh 'echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin'
-          }
-        }
-      }
-    }
-
-    stage('Push Docker Image') {
-      steps {
-        container('docker') {
-          sh 'docker push $IMAGE_NAME:$IMAGE_TAG'
-        }
-      }
-    }
-  }
-  post {
-    always {
-      container('docker') {
-        sh 'docker logout'
       }
     }
   }
