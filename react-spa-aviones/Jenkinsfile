@@ -4,10 +4,7 @@ podTemplate(
       name: 'kaniko',
       image: 'gcr.io/kaniko-project/executor:latest',
       ttyEnabled: true,
-      volumeMounts: [
-        mountPath: '/kaniko/.docker/', 
-        name: 'dockerhub-kaniko2'
-      ]
+      volumeMount: volumeMount(secretName: 'dockerhub-kaniko2', mountPath: '/kaniko/.docker/')
     )
   ],
   volumes: [
@@ -15,7 +12,7 @@ podTemplate(
   ]
 ) {
   node(POD_LABEL) {
-    stage('Build and Push Image with Kaniko') {
+    stage('Build and Push Image') {
       container('kaniko') {
         sh '''
           /kaniko/executor \
