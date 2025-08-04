@@ -8,15 +8,14 @@ spec:
   containers:
   - name: kaniko
     image: gcr.io/kaniko-project/executor:latest
+    command:
+    - /bin/sh
     args:
-    - --context=react-spa-aviones
-    - --dockerfile=react-spa-aviones/Dockerfile
-    - --destination=docker.io/gab741/portal-aviones:latest
-    - --verbosity=info
+    - -c
+    - while true; do sleep 30; done;
     volumeMounts:
     - name: docker-config
       mountPath: /kaniko/.docker
-  restartPolicy: Never
   volumes:
   - name: docker-config
     secret:
@@ -24,10 +23,29 @@ spec:
 """
     }
   }
+  environment {
+    IMAGE_NAME = "gab741/portal-aviones"
+    IMAGE_TAG = "latest"
+    DOCKERFILE_PATH = "react-spa-aviones/Dockerfile"
+    CONTEXT_PATH = "react-spa-aviones"
+  }
   stages {
     stage('Checkout') {
       steps {
         git url: 'https://github.com/Gabriel-cem/portal-k8s.git'
+      }
+    }
+    stage('Build and Push Docker Image with Kaniko') {
+      steps {
+        container('kaniko') {
+          sh '''
+            /kaniko/executor \
+              --context ${WORKSPACE}/${CONTEXT_PATH} \
+              --dockerfile ${WORKSPACE}/${DOCKERFILE_PATH} \
+              --destination docker.io/${IMAGE_NAME}:${IMAGE_TAG} \
+              --verbosity info
+          '''
+        }
       }
     }
   }
