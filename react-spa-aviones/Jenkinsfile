@@ -8,8 +8,6 @@ spec:
   containers:
   - name: kaniko
     image: gcr.io/kaniko-project/executor:latest
-    command:
-    - /kaniko/executor
     args:
     - --context=react-spa-aviones
     - --dockerfile=react-spa-aviones/Dockerfile
@@ -18,6 +16,7 @@ spec:
     volumeMounts:
     - name: docker-config
       mountPath: /kaniko/.docker
+  restartPolicy: Never
   volumes:
   - name: docker-config
     secret:
