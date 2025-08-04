@@ -6,8 +6,8 @@ pipeline {
         kind: Pod
         spec:
           containers:
-          - name: maven
-            image: maven:alpine
+          - name: node
+            image: node:18-alpine
             command:
             - cat
             tty: true
@@ -34,7 +34,7 @@ pipeline {
   stages {
     stage('Checkout') {
       steps {
-        container('maven') {
+        container('node') {
           dir('react-spa-aviones') {
             checkout scm
           }
@@ -42,11 +42,12 @@ pipeline {
       }
     }
 
-    stage('Build-Jar-file') {
+    stage('Build-React-App') {
       steps {
-        container('maven') {
+        container('node') {
           dir('react-spa-aviones') {
-            sh 'mvn package'
+            sh 'npm install'
+            sh 'npm run build'
           }
         }
       }
@@ -57,7 +58,6 @@ pipeline {
         container('docker') {
           dir('react-spa-aviones') {
             script {
-              // Obtener el short SHA
               def shortCommit = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
               def tag = "build-${env.BUILD_NUMBER}-${shortCommit}"
               env.IMAGE_TAG = "${IMAGE_REPO}:${tag}"
