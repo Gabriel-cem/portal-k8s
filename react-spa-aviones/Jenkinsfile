@@ -1,26 +1,49 @@
-podTemplate(
-  containers: [
-    containerTemplate(
-      name: 'kaniko',
-      image: 'gcr.io/kaniko-project/executor:latest',
-      ttyEnabled: true,
-      volumeMount: volumeMount(secretName: 'dockerhub-kaniko2', mountPath: '/kaniko/.docker/')
-    )
-  ],
-  volumes: [
-    secretVolume(secretName: 'dockerhub-kaniko2', mountPath: '/kaniko/.docker/')
-  ]
-) {
-  node(POD_LABEL) {
-    stage('Build and Push Image') {
-      container('kaniko') {
-        sh '''
-          /kaniko/executor \
-            --dockerfile=react-spa-aviones/Dockerfile \
-            --context=dir://react-spa-aviones \
-            --destination=gab741/portal-aviones:tag \
-            --cache
-        '''
+pipeline {
+  agent {
+    kubernetes {
+      yaml """
+apiVersion: v1
+kind: Pod
+spec:
+  containers:
+  - name: kaniko
+    image: gcr.io/kaniko-project/executor:latest
+    command:
+    - cat
+    tty: true
+    volumeMounts:
+    - name: docker-config
+      mountPath: /kaniko/.docker
+  volumes:
+  - name: docker-config
+    secret:
+      secretName: dockerhub-kaniko2
+"""
+    }
+  }
+  environment {
+    IMAGE_NAME = "gab741/portal-aviones"
+    IMAGE_TAG = "latest"
+    DOCKERFILE_PATH = "react-spa-aviones/Dockerfile"
+    CONTEXT_PATH = "react-spa-aviones"
+  }
+  stages {
+    stage('Checkout') {
+      steps {
+        git url: 'https://github.com/Gabriel-cem/portal-k8s.git'
+      }
+    }
+    stage('Build and Push Docker Image with Kaniko') {
+      steps {
+        container('kaniko') {
+          sh '''
+            /kaniko/executor \
+              --context ${WORKSPACE}/${CONTEXT_PATH} \
+              --dockerfile ${WORKSPACE}/${DOCKERFILE_PATH} \
+              --destination docker.io/${IMAGE_NAME}:${IMAGE_TAG} \
+              --verbosity info
+          '''
+        }
       }
     }
   }
