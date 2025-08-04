@@ -8,6 +8,11 @@ spec:
   containers:
   - name: kaniko
     image: gcr.io/kaniko-project/executor:latest
+    command:
+    - /busybox/sh
+    args:
+    - -c
+    - while true; do sleep 30; done;
     volumeMounts:
     - name: docker-config
       mountPath: /kaniko/.docker
