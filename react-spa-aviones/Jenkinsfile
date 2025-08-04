@@ -8,89 +8,70 @@ pipeline {
           containers:
           - name: node
             image: node:18-alpine
-            command:
-            - cat
+            command: ["cat"]
             tty: true
           - name: docker
             image: docker:latest
-            command:
-            - cat
+            command: ["cat"]
             tty: true
             volumeMounts:
-             - mountPath: /var/run/docker.sock
-               name: docker-sock
+              - mountPath: /var/run/docker.sock
+                name: docker-sock
           volumes:
-          - name: docker-sock
-            hostPath:
-              path: /var/run/docker.sock    
+            - name: docker-sock
+              hostPath:
+                path: /var/run/docker.sock
       '''
     }
   }
-
   environment {
-    IMAGE_REPO = "gab741/portal-aviones"
+    IMAGE_NAME = 'gab741/portal-aviones'
+    IMAGE_TAG = "${env.BUILD_NUMBER}"
   }
-
   stages {
-    stage('Checkout') {
+    stage('Build React App') {
       steps {
         container('node') {
           dir('react-spa-aviones') {
-            checkout scm
+            sh '''
+              npm install
+              npm run build
+            '''
           }
         }
       }
     }
 
-    stage('Build-React-App') {
-      steps {
-        container('node') {
-          dir('react-spa-aviones') {
-            sh 'npm install'
-            sh 'npm run build'
-          }
-        }
-      }
-    }
-
-    stage('Build-Docker-Image') {
+    stage('Build Docker Image') {
       steps {
         container('docker') {
           dir('react-spa-aviones') {
-            script {
-              def shortCommit = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
-              def tag = "build-${env.BUILD_NUMBER}-${shortCommit}"
-              env.IMAGE_TAG = "${IMAGE_REPO}:${tag}"
-              env.IMAGE_LATEST = "${IMAGE_REPO}:latest"
-
-              echo "Building Docker image with tags: ${env.IMAGE_TAG} and ${env.IMAGE_LATEST}"
-              sh "docker build -t ${env.IMAGE_TAG} -t ${env.IMAGE_LATEST} ."
-            }
+            sh '''
+              docker build -t $IMAGE_NAME:$IMAGE_TAG .
+            '''
           }
         }
       }
     }
 
-    stage('Login-to-DockerHub') {
+    stage('Login to DockerHub') {
       steps {
         container('docker') {
           withCredentials([usernamePassword(credentialsId: 'docker', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-            sh 'docker login -u $DOCKER_USER -p $DOCKER_PASS'
+            sh 'echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin'
           }
         }
       }
     }
 
-    stage('Push-Docker-Images') {
+    stage('Push Docker Image') {
       steps {
         container('docker') {
-          sh "docker push ${env.IMAGE_TAG}"
-          sh "docker push ${env.IMAGE_LATEST}"
+          sh 'docker push $IMAGE_NAME:$IMAGE_TAG'
         }
       }
     }
   }
-
   post {
     always {
       container('docker') {
