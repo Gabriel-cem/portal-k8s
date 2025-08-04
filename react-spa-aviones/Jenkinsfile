@@ -1,66 +1,100 @@
 pipeline {
   agent {
     kubernetes {
-      yaml """
-apiVersion: v1
-kind: Pod
-spec:
-  containers:
-  - name: jnlp
-    image: jenkins/inbound-agent:alpine
-    args: ['\$(JENKINS_SECRET)', '\$(JENKINS_NAME)']
-    volumeMounts:
-    - name: cemosa-ca
-      mountPath: /usr/local/share/ca-certificates/cemosa
-  - name: kaniko
-    image: gcr.io/kaniko-project/executor:latest
-    command:
-      - /busybox/sh
-    args:
-      - -c
-      - |
-        cp /usr/local/share/ca-certificates/cemosa/*.crt /etc/ssl/certs/ && \
-        update-ca-certificates && \
-        tail -f /dev/null
-    volumeMounts:
-    - name: cemosa-ca
-      mountPath: /usr/local/share/ca-certificates/cemosa
-    - name: kaniko-secret
-      mountPath: /kaniko/.docker
-  volumes:
-  - name: cemosa-ca
-    configMap:
-      name: cemosa-ca-cert
-  - name: kaniko-secret
-    secret:
-      secretName: dockerhub-kaniko2
-"""
+      yaml '''
+        apiVersion: v1
+        kind: Pod
+        spec:
+          containers:
+          - name: maven
+            image: maven:alpine
+            command:
+            - cat
+            tty: true
+          - name: docker
+            image: docker:latest
+            command:
+            - cat
+            tty: true
+            volumeMounts:
+             - mountPath: /var/run/docker.sock
+               name: docker-sock
+          volumes:
+          - name: docker-sock
+            hostPath:
+              path: /var/run/docker.sock    
+      '''
     }
   }
 
   environment {
-    DOCKER_IMAGE = "gab741/portal-aviones"
-    DOCKER_TAG = "latest"
+    IMAGE_REPO = "gab741/portal-aviones"
   }
 
   stages {
     stage('Checkout') {
       steps {
-        checkout scm
+        container('maven') {
+          dir('react-spa-aviones') {
+            checkout scm
+          }
+        }
       }
     }
 
-    stage('Build and Push with Kaniko') {
+    stage('Build-Jar-file') {
       steps {
-        container('kaniko') {
-          sh '''
-            /kaniko/executor \
-              --context=dir://react-spa-aviones \
-              --dockerfile=react-spa-aviones/Dockerfile \
-              --destination=${DOCKER_IMAGE}:${DOCKER_TAG} \
-              --verbosity=info
-          '''
+        container('maven') {
+          dir('react-spa-aviones') {
+            sh 'mvn package'
+          }
         }
+      }
+    }
+
+    stage('Build-Docker-Image') {
+      steps {
+        container('docker') {
+          dir('react-spa-aviones') {
+            script {
+              // Obtener el short SHA
+              def shortCommit = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
+              def tag = "build-${env.BUILD_NUMBER}-${shortCommit}"
+              env.IMAGE_TAG = "${IMAGE_REPO}:${tag}"
+              env.IMAGE_LATEST = "${IMAGE_REPO}:latest"
+
+              echo "Building Docker image with tags: ${env.IMAGE_TAG} and ${env.IMAGE_LATEST}"
+              sh "docker build -t ${env.IMAGE_TAG} -t ${env.IMAGE_LATEST} ."
+            }
+          }
+        }
+      }
+    }
+
+    stage('Login-to-DockerHub') {
+      steps {
+        container('docker') {
+          withCredentials([usernamePassword(credentialsId: 'docker', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+            sh 'docker login -u $DOCKER_USER -p $DOCKER_PASS'
+          }
+        }
+      }
+    }
+
+    stage('Push-Docker-Images') {
+      steps {
+        container('docker') {
+          sh "docker push ${env.IMAGE_TAG}"
+          sh "docker push ${env.IMAGE_LATEST}"
+        }
+      }
+    }
+  }
+
+  post {
+    always {
+      container('docker') {
+        sh 'docker logout'
       }
     }
   }
