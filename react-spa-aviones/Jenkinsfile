@@ -6,7 +6,7 @@ podTemplate(
       ttyEnabled: true,
       volumeMounts: [
         mountPath: '/kaniko/.docker/', 
-        name: 'kaniko-secret'
+        name: 'dockerhub-kaniko2'
       ]
     )
   ],
