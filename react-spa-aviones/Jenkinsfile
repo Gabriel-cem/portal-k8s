@@ -1,59 +1,29 @@
-pipeline {
-  agent {
-    kubernetes {
-      yaml """
-apiVersion: v1
-kind: Pod
-spec:
-  containers:
-  - name: node
-    image: node:18-alpine
-    command:
-    - cat
-    tty: true
-  - name: kaniko
-    image: gcr.io/kaniko-project/executor:latest
-    args:
-    - --cache=true
-    - --cache-ttl=168h
-    volumeMounts:
-    - name: kaniko-secret
-      mountPath: /kaniko/.docker/
-  volumes:
-  - name: kaniko-secret
-    secret:
-      secretName: dockerhub-kaniko2
-"""
-    }
-  }
-  environment {
-    IMAGE_NAME = 'gab741/portal-aviones'
-    IMAGE_TAG = "${env.BUILD_NUMBER}"
-  }
-  stages {
-    stage('Build React App') {
-      steps {
-        container('node') {
-          dir('react-spa-aviones') {
-            sh '''
-              npm install
-              npm run build
-            '''
-          }
-        }
-      }
-    }
-    stage('Build and Push Docker Image with Kaniko') {
-      steps {
-        container('kaniko') {
-          sh """
-            /kaniko/executor \
-              --dockerfile=react-spa-aviones/Dockerfile \
-              --context=dir://react-spa-aviones \
-              --destination=$IMAGE_NAME:$IMAGE_TAG \
-              --cache=true
-          """
-        }
+podTemplate(
+  containers: [
+    containerTemplate(
+      name: 'kaniko',
+      image: 'gcr.io/kaniko-project/executor:latest',
+      ttyEnabled: true,
+      volumeMounts: [
+        mountPath: '/kaniko/.docker/', 
+        name: 'kaniko-secret'
+      ]
+    )
+  ],
+  volumes: [
+    secretVolume(secretName: 'dockerhub-kaniko2', mountPath: '/kaniko/.docker/')
+  ]
+) {
+  node(POD_LABEL) {
+    stage('Build and Push Image with Kaniko') {
+      container('kaniko') {
+        sh '''
+          /kaniko/executor \
+            --dockerfile=react-spa-aviones/Dockerfile \
+            --context=dir://react-spa-aviones \
+            --destination=gab741/portal-aviones:tag \
+            --cache
+        '''
       }
     }
   }
