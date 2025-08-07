@@ -1,2 +1,2 @@
-FROM alpine
-CMD ["echo", "Hello from Kaniko!"]
+FROM busybox
+CMD ["sh", "-c", "echo Hello from BusyBox"]
