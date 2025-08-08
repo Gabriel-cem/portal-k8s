@@ -1,7 +1,7 @@
 pipeline {
   agent {
     kubernetes {
-      yamlFile 'pod-template-buildah.yaml'
+      yamlFile 'react-spa-aviones/pod-template-buildah.yaml'
     }
   }
   environment {
