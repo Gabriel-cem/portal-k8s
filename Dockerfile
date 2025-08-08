@@ -1,8 +1,11 @@
-FROM gcr.io/kaniko-project/executor:latest
+FROM debian:bullseye-slim
 
-# Instala busybox para tener acceso a comandos básicos como `sleep`
-USER root
-RUN apt-get update && apt-get install -y busybox
+# Instala Kaniko y sleep
+RUN apt-get update && \
+    apt-get install -y curl ca-certificates busybox && \
+    curl -LO https://github.com/GoogleContainerTools/kaniko/releases/download/v1.22.0/executor && \
+    chmod +x executor && \
+    mv executor /kaniko/executor
 
-# Establece el usuario por defecto de nuevo
-USER kaniko
+ENV PATH="/kaniko:${PATH}"
+ENTRYPOINT ["/kaniko/executor"]
