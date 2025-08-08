@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    some-label: buildah
+spec:
+  containers:
+    - name: buildah
+      image: quay.io/buildah/stable
+      command:
+        - cat
+      tty: true
+      securityContext:
+        privileged: true
