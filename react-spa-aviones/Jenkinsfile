@@ -1,33 +1,34 @@
 pipeline {
   agent {
     kubernetes {
-      yaml """
-apiVersion: v1
-kind: Pod
-spec:
-  containers:
-  - name: kaniko
-    image: gcr.io/kaniko-project/executor:latest
-    args:
-    - --context=react-spa-aviones
-    - --dockerfile=react-spa-aviones/Dockerfile
-    - --destination=docker.io/gab741/portal-aviones:latest
-    - --verbosity=info
-    volumeMounts:
-    - name: docker-config
-      mountPath: /kaniko/.docker
-  restartPolicy: Never
-  volumes:
-  - name: docker-config
-    secret:
-      secretName: dockerhub-kaniko2
-"""
+      yamlFile 'jenkins/pod-template-buildah.yaml'
     }
   }
+  environment {
+    IMAGE_NAME = 'gab741/portal-aviones'
+    IMAGE_TAG = 'latest'
+    REGISTRY = 'docker.io'
+  }
   stages {
-    stage('Checkout') {
+    stage('Build Image') {
       steps {
-        git url: 'https://github.com/Gabriel-cem/portal-k8s.git'
+        container('buildah') {
+          sh '''
+            buildah bud -t $REGISTRY/$IMAGE_NAME:$IMAGE_TAG .
+          '''
+        }
+      }
+    }
+    stage('Login & Push') {
+      steps {
+        container('buildah') {
+          withCredentials([usernamePassword(credentialsId: 'docker', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+            sh '''
+              buildah login -u $DOCKER_USER -p $DOCKER_PASS $REGISTRY
+              buildah push $REGISTRY/$IMAGE_NAME:$IMAGE_TAG
+            '''
+          }
+        }
       }
     }
   }
