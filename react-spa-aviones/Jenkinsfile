@@ -14,7 +14,7 @@ pipeline {
       steps {
         container('buildah') {
           sh '''
-            buildah bud -t $REGISTRY/$IMAGE_NAME:$IMAGE_TAG .
+            buildah bud --isolation=chroot -t $REGISTRY/$IMAGE_NAME:$IMAGE_TAG .
           '''
         }
       }
